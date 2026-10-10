@@ -6,24 +6,74 @@ import json
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from google import genai
-from google.genai import types
-from pydantic import BaseModel, Field
+from google.genai import errors, types
+import httpx
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 logger = logging.getLogger(__name__)
 
+# Configurable on Render without another code deployment.
+DEFAULT_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "").strip() or DEFAULT_MODEL
+
 # Initialize GenAI Client
 client = (
-    genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+    genai.Client(
+        api_key=os.environ.get("GEMINI_API_KEY"),
+        http_options=types.HttpOptions(timeout=45000),
+    )
     if os.environ.get("GEMINI_API_KEY")
     else None
 )
 
 class ApplicantRequest(BaseModel):
     """Applicant inputs; ZIP codes remain strings to preserve leading zeros."""
+    model_config = ConfigDict(str_strip_whitespace=True)
     high_school_name: str = Field(min_length=1)
     zip_code: str = Field(pattern=r"^[0-9]{5}$")
     ap_classes_taken: int = Field(ge=0)
     survival_hours_per_week: int = Field(ge=0)
+
+class ResearchData(BaseModel):
+    """Require actual research fields instead of silently substituting fake metrics."""
+    model_config = ConfigDict(str_strip_whitespace=True)
+    ap_classes_offered: int = Field(ge=0, strict=True)
+    counselor_ratio: int = Field(gt=0, strict=True)
+    median_income: int = Field(ge=0, strict=True)
+    context_statement: str = Field(min_length=1)
+
+
+def parse_research(text: str | None) -> ResearchData:
+    if not text or not text.strip():
+        raise ValueError("Empty model response")
+    raw = text.strip()
+    if raw.startswith("```"):
+        lines = raw.splitlines()
+        if len(lines) < 3 or lines[-1].strip() != "```":
+            raise ValueError("Incomplete JSON fence")
+        raw = "\n".join(lines[1:-1])
+    return ResearchData.model_validate(json.loads(raw))
+
+
+def generate_research(prompt: str):
+    config = types.GenerateContentConfig(
+        tools=[types.Tool(google_search=types.GoogleSearch())],
+        temperature=0.2,
+    )
+    try:
+        return client.models.generate_content(
+            model=GEMINI_MODEL, contents=prompt, config=config,
+        )
+    except errors.APIError as exc:
+        # A model unavailable to this project should not break all reports.
+        # Do not retry bad credentials or quota errors with another model.
+        if exc.code != 404 or GEMINI_MODEL == DEFAULT_MODEL:
+            raise
+        logger.warning("Configured Gemini model unavailable; trying %s", DEFAULT_MODEL)
+        return client.models.generate_content(
+            model=DEFAULT_MODEL, contents=prompt, config=config,
+        )
+
 
 app = FastAPI()
 
@@ -72,41 +122,35 @@ Respond strictly with a JSON object in this format (do not wrap in markdown code
   "context_statement": "The applicant..."
 }}"""
 
-try:
-        # ENABLE GOOGLE SEARCH GROUNDING TOOL
-        response = client.models.generate_content(
-            model="gemini-3.8-flash",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(google_search=types.GoogleSearch())],
-                temperature=0.2
-            )
-        )
-        
-        # Parse the JSON response returned by Gemini
-        raw_text = response.text.strip()
-        if raw_text.startswith("```json"):
-            raw_text = raw_text.split("```json")[1].split("```")[0].strip()
-        elif raw_text.startswith("```"):
-            raw_text = raw_text.split("```")[1].split("```")[0].strip()
-            
-        research_data = json.loads(raw_text)
-        
-        offered = int(research_data.get("ap_classes_offered", 10))
-        counselor_ratio = int(research_data.get("counselor_ratio", 350))
-        median_income = int(research_data.get("median_income", 65000))
-        statement = str(research_data.get("context_statement", ""))
-        
-    except json.JSONDecodeError as e:
-        logger.exception("Gemini failed to return valid JSON.")
-        raise HTTPException(status_code=502, detail=f"JSON Parse Error: {str(e)}") from None
-    except Exception as e:
+    try:
+        research_data = parse_research(generate_research(prompt).text)
+        offered = research_data.ap_classes_offered
+        counselor_ratio = research_data.counselor_ratio
+        median_income = research_data.median_income
+        statement = research_data.context_statement
+    except errors.APIError as exc:
+        logger.warning("Gemini request failed: model=%s status=%s", GEMINI_MODEL, exc.code)
+        if exc.code == 429:
+            raise HTTPException(
+                status_code=429,
+                detail="Gemini quota or rate limit reached. Check the API project's quota and billing, then retry.",
+                headers={"Retry-After": "60"},
+            ) from None
+        if exc.code in (400, 401, 403):
+            detail = "Gemini rejected the request. Check the Render GEMINI_API_KEY, API permissions, and model access."
+        elif exc.code == 404:
+            detail = "Gemini model is unavailable. Set GEMINI_MODEL on Render to a model available to your API project."
+        else:
+            detail = "Gemini is temporarily unavailable. Please try again shortly."
+        raise HTTPException(status_code=503, detail=detail) from None
+    except (httpx.TimeoutException, TimeoutError):
+        raise HTTPException(status_code=504, detail="School research timed out. Please try again.") from None
+    except (ValueError, ValidationError):
+        logger.warning("Gemini returned empty, malformed, or incomplete research data")
+        raise HTTPException(status_code=502, detail="Gemini returned incomplete research data. Please try again.") from None
+    except Exception:
         logger.exception("Gemini context generation or search failed")
-        # THIS WILL PRINT THE EXACT GOOGLE ERROR TO YOUR FRONTEND SCREEN
-        raise HTTPException(status_code=502, detail=f"Google API Crash: {str(e)}") from None
-
-    if not statement:
-        raise HTTPException(status_code=502, detail="Gemini returned an empty context statement.")
+        raise HTTPException(status_code=502, detail="School research failed unexpectedly. Please try again.") from None
 
     # Calculate the utilization percentage based on Gemini's research
     percentage = min((request.ap_classes_taken / offered) * 100, 100) if offered > 0 else 0.0
