@@ -115,3 +115,17 @@ For every task:
 6. Report integration dependencies.
 
 Wait for my next implementation task.
+
+
+I am attending HackRU at Rutgers NB. This is my first Hackathon as a Data Science on the CS track major as I am a freshman. I want to win this thing and come out on top. I need you to help me with this beforehand.
+TRACKS
+
+- Social Good: Hacks that better the community.
+- Education: Hacks that focus on building an educated community.
+- Maverick: Any other hack! The opportunities are limitless.
+
+And more sponsor prizes!
+
+Some tracks there. Here is the website as well. https://www.hackru.org/
+
+Design something thats creative, is well made and benefits the community while being TRULY unique. Dont make something that you can already do by using AI and pasting an image or asking a prompt. Do something that ACTUALLY fixes a problem. 
