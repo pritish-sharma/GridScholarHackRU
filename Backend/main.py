@@ -72,8 +72,8 @@ Respond strictly with a JSON object in this format (do not wrap in markdown code
   "context_statement": "The applicant..."
 }}"""
 
-    try:
-        # ENABLE GOOGLE SEARCH GROUNDING TOOL (WITHOUT CONFLICTING MIME TYPE)
+try:
+        # ENABLE GOOGLE SEARCH GROUNDING TOOL
         response = client.models.generate_content(
             model="gemini-3.8-flash",
             contents=prompt,
@@ -97,12 +97,13 @@ Respond strictly with a JSON object in this format (do not wrap in markdown code
         median_income = int(research_data.get("median_income", 65000))
         statement = str(research_data.get("context_statement", ""))
         
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
         logger.exception("Gemini failed to return valid JSON.")
-        raise HTTPException(status_code=502, detail="Gemini failed to format the research data.") from None
-    except Exception:
+        raise HTTPException(status_code=502, detail=f"JSON Parse Error: {str(e)}") from None
+    except Exception as e:
         logger.exception("Gemini context generation or search failed")
-        raise HTTPException(status_code=502, detail="Gemini search or context generation failed.") from None
+        # THIS WILL PRINT THE EXACT GOOGLE ERROR TO YOUR FRONTEND SCREEN
+        raise HTTPException(status_code=502, detail=f"Google API Crash: {str(e)}") from None
 
     if not statement:
         raise HTTPException(status_code=502, detail="Gemini returned an empty context statement.")
