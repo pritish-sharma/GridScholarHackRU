@@ -12,7 +12,7 @@ export default function InputFormPage({ setReportData }) {
     setIsLoading(true);
 
     try {
-       const response = await fetch('https://YOUR-BACKEND-NAME.onrender.com/api/context-report', {    
+       const response = await fetch('https://gridscholar.onrender.com/api/context-report', {    
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
