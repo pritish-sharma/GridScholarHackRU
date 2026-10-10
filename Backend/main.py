@@ -14,7 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 logger = logging.getLogger(__name__)
 
 # Configurable on Render without another code deployment.
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "").strip()
+GEMINI_MODEL = gemini-3.8-flash
 _working_model: str | None = None
 
 # Initialize GenAI Client
