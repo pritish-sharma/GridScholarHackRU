@@ -52,37 +52,34 @@ def context_report(request: ApplicantRequest) -> dict:
     state_median_income = 85000
 
     # Prompt asks Gemini to act as a researcher AND return structured JSON
-    prompt = f"""
-    You are an expert college admissions counselor and data researcher.
-    Use Google Search to find real-world statistics for "{request.high_school_name}" in ZIP code {request.zip_code}.
+    prompt = f"""You are an expert college admissions counselor and data researcher.
+Use Google Search to find real-world statistics for {request.high_school_name} in ZIP code {request.zip_code}.
 
-    Find or closely estimate the following data points for this specific school and its surrounding area:
-    1. ap_classes_offered: (Integer) The total number of AP courses offered at the school. 
-    2. counselor_ratio: (Integer) The student-to-counselor ratio (e.g. 450).
-    3. median_income: (Integer) The median household income for the ZIP code or town.
+Find or closely estimate:
+1. ap_classes_offered: (Integer) total AP courses offered.
+2. counselor_ratio: (Integer) student-to-counselor ratio.
+3. median_income: (Integer) median household income for the ZIP or town.
 
-    Then, write a 150-word, highly objective, professional summary of this student's 'Distance Traveled' and resilience for a college admissions officer. 
-    The student took {request.ap_classes_taken} APs and works {request.survival_hours_per_week} hours/wk in non-academic survival obligations.
-    Use the quantitative data you found to highlight their grit and contextualize their academic performance relative to state averages (Counselor Ratio: 250:1, Median Income: $85,000).
+Then write a 150-word objective summary of this student's 'Distance Traveled'.
+The student took {request.ap_classes_taken} APs and works {request.survival_hours_per_week} hours/wk in survival obligations.
+State averages: Counselor Ratio: 250:1, Median Income: $85,000.
 
-    Respond STRICTLY with valid JSON in the exact following format. Do not use markdown blocks (```json) or add any extra text outside the brackets:
-    {{
-      "ap_classes_offered": 15,
-      "counselor_ratio": 350,
-      "median_income": 85000,
-      "context_statement": "The applicant at [School Name]..."
-    }}
-    """
+Respond strictly with a JSON object in this format (do not wrap in markdown code fences):
+{{
+  "ap_classes_offered": 15,
+  "counselor_ratio": 350,
+  "median_income": 85000,
+  "context_statement": "The applicant..."
+}}"""
 
     try:
-        # ENABLE GOOGLE SEARCH GROUNDING TOOL
+        # ENABLE GOOGLE SEARCH GROUNDING TOOL (WITHOUT CONFLICTING MIME TYPE)
         response = client.models.generate_content(
             model="gemini-3.8-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 tools=[types.Tool(google_search=types.GoogleSearch())],
-                temperature=0.2,
-                response_mime_type="application/json"
+                temperature=0.2
             )
         )
         
