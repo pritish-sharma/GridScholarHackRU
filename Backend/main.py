@@ -41,14 +41,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# --- CORS MIDDLEWARE CONFIGURED HERE ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=["*"], 
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+# ---------------------------------------
 
 @app.get("/health")
 async def health() -> dict[str, str]:
