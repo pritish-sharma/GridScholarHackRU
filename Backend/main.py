@@ -3,6 +3,7 @@
 import logging
 import os
 import json
+import re
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from google import genai
@@ -13,8 +14,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 logger = logging.getLogger(__name__)
 
 # Configurable on Render without another code deployment.
-DEFAULT_MODEL = "gemini-2.5-flash"
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "").strip() or DEFAULT_MODEL
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "").strip()
+_working_model: str | None = None
 
 # Initialize GenAI Client
 client = (
@@ -55,24 +56,80 @@ def parse_research(text: str | None) -> ResearchData:
     return ResearchData.model_validate(json.loads(raw))
 
 
+def available_research_models() -> list[str]:
+    """Discover text-generation Flash models from this API project's model list."""
+    names = set()
+    for model in client.models.list():
+        name = (model.name or "").removeprefix("models/")
+        if "generateContent" not in (model.supported_actions or []):
+            continue
+        # Exclude image, audio, live, embedding and other specialized models.
+        if re.fullmatch(r"gemini-\d+(?:\.\d+)?-flash(?:-lite)?(?:-latest|-\d{3}|-preview(?:-\d{2}-\d{2})?)?", name):
+            names.add(name)
+    def preference(name):
+        version = re.search(r"gemini-(\d+)(?:\.(\d+))?", name)
+        return ("lite" in name, "preview" in name,
+                -int(version[1]), -int(version[2] or 0), name)
+    return sorted(names, key=preference)
+
+
 def generate_research(prompt: str):
+    global _working_model
     config = types.GenerateContentConfig(
         tools=[types.Tool(google_search=types.GoogleSearch())],
         temperature=0.2,
     )
-    try:
-        return client.models.generate_content(
-            model=GEMINI_MODEL, contents=prompt, config=config,
-        )
-    except errors.APIError as exc:
-        # A model unavailable to this project should not break all reports.
-        # Do not retry bad credentials or quota errors with another model.
-        if exc.code != 404 or GEMINI_MODEL == DEFAULT_MODEL:
-            raise
-        logger.warning("Configured Gemini model unavailable; trying %s", DEFAULT_MODEL)
-        return client.models.generate_content(
-            model=DEFAULT_MODEL, contents=prompt, config=config,
-        )
+    attempted = set()
+    last_error = None
+
+    def attempt(model):
+        nonlocal last_error
+        global _working_model
+        attempted.add(model.removeprefix("models/"))
+        try:
+            response = client.models.generate_content(
+                model=model, contents=prompt, config=config,
+            )
+            _working_model = model
+            return response
+        except errors.APIError as exc:
+            # Only model absence or explicitly unsupported search permits fallback.
+            message = str(exc).lower()
+            unsupported_search = (exc.code == 400
+                and any(term in message for term in ("google_search", "google search", "grounding"))
+                and any(term in message for term in ("not supported", "unsupported", "not available")))
+            if exc.code != 404 and not unsupported_search:
+                raise
+            if _working_model == model:
+                _working_model = None
+            last_error = exc
+            logger.warning("Gemini model unavailable for grounded research: model=%s status=%s", model, exc.code)
+            return None
+
+    # Reuse a model that has worked; honor an explicit model on the first request.
+    first = _working_model or GEMINI_MODEL
+    if first:
+        response = attempt(first)
+        if response is not None:
+            return response
+
+    models = available_research_models()
+    logger.info("Discovered Gemini research models: %s", ", ".join(models))
+    for model in models:
+        if model in attempted:
+            continue
+        if len(attempted) >= 3:
+            break
+        response = attempt(model)
+        if response is not None:
+            return response
+    if last_error is not None:
+        raise last_error
+    raise HTTPException(status_code=503, detail=(
+        "No compatible Gemini Flash model was returned for this API key. "
+        "Check the Google AI Studio project and model access, or set GEMINI_MODEL "
+        "to an available model supporting Google Search."
+    ))
 
 
 app = FastAPI()
@@ -128,6 +185,8 @@ Respond strictly with a JSON object in this format (do not wrap in markdown code
         counselor_ratio = research_data.counselor_ratio
         median_income = research_data.median_income
         statement = research_data.context_statement
+    except HTTPException:
+        raise
     except errors.APIError as exc:
         logger.warning("Gemini request failed: model=%s status=%s", GEMINI_MODEL, exc.code)
         if exc.code == 429:
@@ -139,7 +198,7 @@ Respond strictly with a JSON object in this format (do not wrap in markdown code
         if exc.code in (400, 401, 403):
             detail = "Gemini rejected the request. Check the Render GEMINI_API_KEY, API permissions, and model access."
         elif exc.code == 404:
-            detail = "Gemini model is unavailable. Set GEMINI_MODEL on Render to a model available to your API project."
+            detail = "Available Gemini models could not run school research. Check model access in Google AI Studio and the Render model-selection logs."
         else:
             detail = "Gemini is temporarily unavailable. Please try again shortly."
         raise HTTPException(status_code=503, detail=detail) from None
