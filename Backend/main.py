@@ -85,7 +85,8 @@ def context_report(request: ApplicantRequest) -> dict:
         raise HTTPException(status_code=503, detail="GEMINI_API_KEY is not configured.")
 
     try:
-        response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+        # --- MODEL UPDATED HERE TO FIX 502 ERROR ---
+        response = client.models.generate_content(model="gemini-3.8-flash", contents=prompt)
         statement = response.text
     except Exception:
         logger.exception("Gemini context generation failed")
