@@ -133,72 +133,86 @@ Design something thats creative, is well made and benefits the community while b
 
 
 
-1. Project "GridScholar" (Education Track)
-The Problem: Chronic absenteeism in underfunded public schools (like those in surrounding NJ areas) is often blamed on the student, but it's heavily linked to hyper-local infrastructure—transit delays, severe weather, and lack of safe walking routes.
-The Solution: A predictive early-warning dashboard for school administrators.
+https://share.gemini.google/WrZLxm5vHFOu
 
-The Data Science: You merge historical public transit data (NJ Transit APIs or GTFS data), historical weather data, and simulated student attendance records.
+# Master Project Specification: DeltaMetrics
 
-The Model: Build a machine learning classification model (like a Random Forest) that flags specific neighborhoods or bus routes that have a high probability of causing severe absenteeism on a given day (e.g., "Heavy rain + Route 18 traffic = 40% expected absence for Zone B").
+**Target Event:** HackRU (Rutgers NB)
+**Target Tracks:** Social Good, Education, Gemini API Sponsor
 
-The Actionable Fix: The dashboard automatically suggests interventions, like dispatching an emergency shuttle to a stranded neighborhood or shifting specific cohorts to excused remote learning for the day before the bell even rings.
+## 1. Core Concept & Value Proposition
 
-Why it wins: It uses geospatial analysis (maps always look great in demos), tabular data, and solves a systemic educational inequity without just saying "we built an AI tutor."
+**The Problem:** College admissions metrics (APs, GPAs) lack socioeconomic context. Under-resourced students are forced to use their limited 650-word personal statement to explain structural disadvantages (low AP offerings, high counselor ratios, working to support family), while wealthy students use that space to showcase personality.
+**The Solution:** DeltaMetrics is a 2-page web application that acts as an "Automated Data-Counselor." It takes basic student inputs, queries federal databases to determine the student's local environmental baseline, and generates a verified, quantitative "Context Report" that applicants can attach to the "Additional Information" section of the Common App.
+**Why it beats generic AI wrappers:** Standard LLMs generate subjective, unverifiable narratives that admissions officers ignore. DeltaMetrics uses deterministic data science (Python, Pandas, federal datasets) to calculate exact percentile benchmarks (e.g., "100% Opportunity Utilization"), using the Gemini API solely to interpret the math into a professional summary.
+**Ethics & Legality:** 100% legal (uses public-domain US government APIs/datasets) and highly ethical (aligns with SCOTUS guidelines allowing the consideration of individual adversity and distance traveled).
 
-To make Gemini API impress hackathon judges rather than looking like an arbitrary wrapper, it must sit at the action layer of your data pipeline, not the start.Judges penalize projects where the LLM does generic guesswork. They reward projects where classical machine learning computes hard quantitative probabilities, and the LLM functions as a deterministic operational engine that turns complex anomalies into actionable, policy-compliant municipal interventions.Here is the exact architecture, data pipeline, and implementation blueprint for GridScholar.The Architecture: Math-First, LLM-Action[Weather Data + NJ Transit GTFS + Student Clusters]
-                       │
-                       ▼
-         [Scikit-Learn Predictive Model]
-     (Calculates P(Absenteeism) per Zone)
-                       │
-                       ▼ High-Risk Anomaly Flagged (>65%)
-                       │
-      [Gemini API: Structured Operational Agent]
-   (Ingests Risk Vector + School District Policy)
-                       │
-         ┌─────────────┴─────────────┐
-         ▼                           ▼
-[Optimized Shuttle Reroute]   [Title 18A Funding Waiver Memo]
-1. Layer 1: The Quantitative ML Engine (Scikit-Learn)Your Python backend processes tabular transit, weather, and student cohort data.Features: Morning precipitation intensity (mm/hr), wind chill, NJ Transit Raritan Valley/Northeast Corridor line delay delta (minutes), student commute distance, walking score of the route.Target: Probability of cohort absenteeism exceeding district emergency thresholds ($P > 0.65$).Output: A structured JSON payload detailing which student clusters (e.g., "Zone 4 - French Street Corridor") face severe attendance collapse tomorrow morning.2. Layer 2: The Gemini Intelligence Layer (What Impresses the Judges)Instead of a chat box, use Gemini's Structured Outputs (response_mime_type="application/json") or Function Calling to serve as an autonomous administrative dispatcher.Gemini takes three inputs:The Quantitative Risk Vector from your ML model.The Live Transit Bulletins (unstructured text alerts scraped from transit feeds).The NJ Department of Education Attendance Regulations.Gemini executes two distinct tasks that static code cannot do:The "Save Our Funding" Memo: In New Jersey, public school district funding is tied to Average Daily Attendance (ADA). A single 40% absentee day can cost a district tens of thousands of dollars in state aid. Gemini cross-references the predicted crisis with NJ Title 18A emergency provisions to draft an audit-ready, legal state aid hardship waiver before the school day begins.Bilingual Emergency Action Protocol: Generates automated, localized SMS dispatch alerts (English and Spanish) informing parents of alternative walking-bus pickup points or district-dispatched shuttles.The Code: Gemini Structured DispatchHere is how you wire Gemini into the project using Python and Pydantic to enforce rigid JSON outputs:Pythonimport os
-from google import genai
-from google.genai import types
-from pydantic import BaseModel, Field
+## 2. Product Features & User Flow
 
-# Define rigid schema for the hackathon demo
-class EmergencyIntervention(BaseModel):
-    zone_id: str
-    predicted_absentee_rate: float
-    root_cause_summary: str
-    reroute_action_plan: str
-    bilingual_sms_english: str
-    bilingual_sms_spanish: str
-    nj_doe_funding_waiver_draft: str = Field(
-        description="Formal administrative waiver citing severe transit/weather hardship to protect state ADA funding."
-    )
+**Screen 1: Applicant Input Form (Frontend)**
+A clean form collecting four data points:
 
-client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+* High School Name (Dropdown/Search)
+* Home Zip Code
+* Number of AP/Honors classes taken
+* Hours spent per week on non-academic "survival" tasks (work, family care, commuting)
 
-def generate_intervention(zone_id: str, risk_score: float, transit_alert: str, weather_summary: str):
-    prompt = f"""
-    You are the Emergency Operations Director for the New Brunswick Public School District.
-    Our ML model has flagged a critical chronic absenteeism event for tomorrow morning:
-    - Zone: {zone_id}
-    - Predicted Absenteeism Spike: {risk_score * 100:.1f}%
-    - Weather Forecast: {weather_summary}
-    - Transit Disruption: {transit_alert}
+**Screen 2: The Context Report Dashboard (Frontend/PDF Export)**
+A printable, scannable dashboard displaying three core elements:
 
-    Synthesize this quantitative risk data into an actionable intervention protocol. 
-    Draft targeted transportation changes, community SMS alerts, and a formal NJ DOE attendance waiver.
-    """
+1. **Opportunity Utilization Chart:** A bar chart/gauge (via Recharts/Chart.js) showing APs taken vs. total APs offered at their specific school.
+2. **Environmental Baseline Metrics:** Three specific data points pulled from the backend:
+* Local High School Counselor-to-Student Ratio vs. State Average.
+* Zip Code Median Income vs. State Average.
+* Calculated "Weekly Time Deficit" (hours lost to survival tasks).
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=EmergencyIntervention,
-            temperature=0.2, # Low temperature for reliable municipal tone
-        ),
-    )
-    return response.text
-24-Hour Execution Blueprint1.Synthesize the Data Pipeline:Hours 1–4.Do not spend hours scraping broken transit APIs. Write a Python script generating 1,000 synthetic student commute profiles across New Brunswick/Piscataway zones. Add realistic correlations: if rain exceeds 15mm and bus route 818 delay exceeds 25 minutes, set student absence to 1.2.Train the Anomaly Detector:Hours 4–8.Train an XGBoostClassifier or RandomForestClassifier. Save the model weights using joblib. Extract feature importances so you can display an interpretability chart (SHAP values or feature importance bar charts) in your presentation.3.Build the Streamlit Dashboard:Hours 8–14.Build a dual-pane Streamlit app:Left Pane (The ML Engine): Interactive Folium map of New Brunswick showing colored zones (Green = Normal, Red = Attendance Alert) and sliders to simulate "Tomorrow's Weather" and "Transit Delays."Right Pane (The Gemini Agent): Displays the parsed JSON outputs—live crisis resolution, one-click SMS broadcasts, and the regulatory waiver memo.4.Add Multimodal Verification (Judge Wow-Factor):Hours 14–18.Add an image upload widget to Streamlit allowing an administrator to upload a screenshot of an NJ Transit alert tweet or radar map. Pass it to Gemini Vision to automatically parse raw disruption text into the model's feature vector.5.Rehearse the Pitch:Hours 18–24.Frame the story around municipal equity: "Underfunded schools lose funding when students can't safely reach class. GridScholar turns passive data into proactive municipal logistics."Why This WinsDimensionTypical Hackathon ProjectGridScholarData Science RigorNone (pure API calls)Supervised learning model with feature engineering and geospatial clustering.LLM UtilityGeneric chatbot generating adviceStructured JSON agent generating actionable municipal dispatches and legal waivers.Real-World Impact"Helps students study better"Solves school district budget loss and physical transit bottlenecks.Demo AppealStatic text inputsInteractive map + live synthetic weather sliders + auto-generated documents.
+
+3. **The Gemini Context Statement:** A 150-word, highly objective paragraph generated by the Gemini API summarizing the student's resilience based *strictly* on the data above.
+
+## 3. Technical Architecture & Tech Stack
+
+**Frontend (Student A - UI/UX Focus)**
+
+* **Framework:** React (Vite) or Next.js.
+* **Styling:** Tailwind CSS.
+* **Visualization:** Recharts or Chart.js for the utilization gauges/bar charts.
+* **Deployment:** Vercel (Auto-deploys via GitHub).
+
+**Backend (Student B - Data Science Focus)**
+
+* **Framework:** Python with FastAPI.
+* **Data Handling:** Pandas and NumPy.
+* **AI Integration:** `google-genai` SDK.
+* **Deployment:** Render (Deployed as a Web Service from a GitHub repo with a `requirements.txt`).
+* **Hackathon Optimization (Crucial):** Do not live-scrape the NCES database. Download the CSV of local/state high schools from the National Center for Education Statistics (NCES) and the US Census beforehand. Load this CSV into a Pandas dataframe on backend startup for instant querying.
+
+## 4. Division of Labor
+
+**Frontend Developer Tasks:**
+
+* Initialize the React/Next.js repository.
+* Build the routing (Page 1 -> Page 2).
+* Create the Input Form UI and handle state.
+* Create the Dashboard UI (Metric cards, Chart component, Gemini text box).
+* Write the API `fetch` calls to send form data to the FastAPI backend and await the JSON response.
+* Implement a "Print to PDF" button (using standard CSS `@media print` or a library like `html2pdf`).
+
+**Backend Developer Tasks:**
+
+* Initialize the FastAPI repository and configure CORS middleware (to allow the frontend to communicate with the backend).
+* Clean and format the NCES/Census CSV files; write a function to search the Pandas dataframe by High School Name / Zip Code.
+* Write the math functions: calculate "Opportunity Utilization" (Taken / Offered) and "Time Deficit."
+* Integrate the Gemini API.
+* Build the main `POST` endpoint that accepts frontend inputs, runs the calculations, formats the prompt, calls Gemini, and returns the compiled JSON payload to the frontend.
+
+## 5. Gemini API Prompt Architecture
+
+The backend must format the dynamic data into this exact prompt structure before sending it to Gemini:
+
+> "You are an expert college admissions counselor. Take this student's empirical data: [Insert Pandas calculated data: e.g., High school offers 3 APs, student took 3 (100% utilization); works 20 hours/wk; Zip code median income $40k vs state avg $85k; Counselor ratio 1:500]. Write a 150-word, highly objective, professional summary of this student's 'Distance Traveled' and resilience for a college admissions officer. Do not invent details. Do not be overly dramatic. Use the quantitative data provided to highlight their grit and contextualize their academic performance."
+
+## 6. Hackathon Execution Strategy
+
+* **Rule #1: Localhost First.** Do not touch Vercel or Render until the app works completely on `localhost:3000` (Frontend) communicating with `localhost:8000` (Backend).
+* **Rule #2: Pre-record the Demo.** The moment the app functions locally, record a 2-minute screen-capture demo showcasing a "High Resource Student" vs. a "Low Resource Student" to prove the dynamic nature of the context engine.
+* **Rule #3: Deploy Last.** Only attempt cloud deployment in the final hours once the core functionality is locked and recorded.
