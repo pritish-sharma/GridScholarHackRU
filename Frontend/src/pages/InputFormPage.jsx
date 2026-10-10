@@ -12,8 +12,7 @@ export default function InputFormPage({ setReportData }) {
     setIsLoading(true);
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || '';
-      const response = await fetch('${apiUrl}/api/context-report', {
+       const response = await fetch('https://YOUR-BACKEND-NAME.onrender.com/api/context-report', {    
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
