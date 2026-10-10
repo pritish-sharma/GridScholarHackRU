@@ -281,3 +281,49 @@ Thought for 5.5s (Prioritizing Tool Selection)
 
 
   TL;DR: Your frontend is 100% complete and demo-ready. Go record your video right now!
+
+
+
+
+ Thought for 10.5s (Prioritizing Tool Selection)
+● Edited 1 file (InputFormPage.jsx) (ctrl+o to expand)
+
+▸ Thought for 4s
+  I'm now detailing deployment steps for both Vercel and Render. The frontend is set up to hit the production backend..
+  Awesome! If the backend is fixed and ready, you are in the final stretch.
+  To get the website ready for launch (cloud deployment), the frontend needs a way to know where the backend lives on
+  the internet, instead of just looking at localhost.
+
+  I just made one tiny update to the Frontend folder: I updated the fetch call in InputFormPage.jsx to use an
+  environment variable (VITE_API_URL). This allows the frontend to dynamically connect to the live backend once
+  deployed.
+
+  Here is your Final Launch Checklist:
+
+  ### Step 1: Deploy the Backend (Developer 1)
+
+  1. Your teammate needs to deploy the Backend folder to a service like Render or Heroku.
+  2. Once deployed, they will get a live URL (e.g., https://deltametrics-backend.onrender.com).
+  3. Copy that URL.
+
+  ### Step 2: Deploy the Frontend (You)
+
+  1. Go to Vercel.com and create a new project.
+  2. Import this GitHub repository.
+  3. CRITICAL: In the project settings during setup, set the Root Directory to Frontend.
+  4. Open the Environment Variables section in Vercel before you click deploy, and add this:
+      • Name: VITE_API_URL
+      • Value: Paste the URL from Step 1 (e.g., https://deltametrics-backend.onrender.com — make sure there is no
+      trailing slash / at the end).
+  5. Click Deploy.
+
+  ### Step 3: Final Testing
+
+  Once Vercel finishes building, go to your live Vercel URL. Fill out the form and submit it.
+
+  • Watch the network tab (F12) to ensure it successfully calls the Render backend and returns the real Gemini AI
+  statement.
+  • Test the "Print to PDF" button on the live site to make sure the styling holds up.
+
+  That's it! You are ready to present. Good luck with the HackRU judging! Let me know if you hit any snags during
+  deployment.
