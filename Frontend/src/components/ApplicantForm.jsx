@@ -8,19 +8,26 @@ export default function ApplicantForm({ onSubmit, isLoading }) {
     apsTaken: '',
     survivalHours: '',
   });
+  const [formError, setFormError] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    setFormError('');
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      // ZIP codes: digits only, max 5 (the server rejects anything else).
+      [name]: name === 'zipCode' ? value.replace(/\D/g, '').slice(0, 5) : value,
     }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.highSchoolName || !formData.zipCode) {
-      alert('Please fill in high school name and zip code.');
+    if (formData.highSchoolName.trim().length < 2) {
+      setFormError('Please enter your high school name.');
+      return;
+    }
+    if (!/^\d{5}$/.test(formData.zipCode)) {
+      setFormError('Please enter a 5-digit ZIP code.');
       return;
     }
 
@@ -34,10 +41,10 @@ export default function ApplicantForm({ onSubmit, isLoading }) {
 
   const handleFillSample = () => {
     setFormData({
-      highSchoolName: 'Lincoln High School',
-      zipCode: '08901',
-      apsTaken: '3',
-      survivalHours: '20',
+      highSchoolName: 'Oswego East High School',
+      zipCode: '60543',
+      apsTaken: '6',
+      survivalHours: '14',
     });
   };
 
@@ -94,6 +101,9 @@ export default function ApplicantForm({ onSubmit, isLoading }) {
               value={formData.zipCode}
               onChange={handleChange}
               placeholder="e.g. 08901"
+              inputMode="numeric"
+              pattern="[0-9]{5}"
+              autoComplete="postal-code"
               maxLength={5}
               required
               className="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-sm transition"
@@ -153,6 +163,12 @@ export default function ApplicantForm({ onSubmit, isLoading }) {
           * Survival hours include required jobs, sibling care, family translation, or elder support.
         </p>
 
+        {formError && (
+          <p role="alert" className="text-sm font-medium text-red-700">
+            {formError}
+          </p>
+        )}
+
         <button
           type="submit"
           disabled={isLoading}
@@ -161,7 +177,7 @@ export default function ApplicantForm({ onSubmit, isLoading }) {
           {isLoading ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              <span>Generating Context Report...</span>
+              <span>Researching your school (can take up to a minute)...</span>
             </>
           ) : (
             <>

@@ -10,7 +10,7 @@ export default function HeroSection() {
         Contextual Admissions Report
       </h1>
       <p className="mt-4 text-lg text-slate-600 leading-relaxed">
-        Evaluating student achievement relative to opportunity. By contrasting AP course access, school resources, and survival hours against state baselines, DeltaMetrics surfaces true student resilience.
+        Evaluating student achievement relative to opportunity. By contrasting AP course access, school resources, and survival hours against national and state benchmarks, DeltaMetrics surfaces true student resilience.
       </p>
     </div>
   );

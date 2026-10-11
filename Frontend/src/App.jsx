@@ -1,12 +1,36 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
 import { Compass } from 'lucide-react';
 import InputFormPage from './pages/InputFormPage';
 import ReportDashboardPage from './pages/ReportDashboardPage';
-import { initialMockReport } from './data/mockData';
+
+const STORAGE_KEY = 'deltametrics:lastReport';
+
+// Keep the last report so refreshing /report (or using the "Live Report" link) still works.
+function loadSavedReport() {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveReport(report) {
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(report));
+  } catch {
+    /* storage unavailable (private mode, etc.): the report still shows this session */
+  }
+}
 
 export default function App() {
-  const [reportData, setReportData] = useState(initialMockReport);
+  const [reportData, setReportDataState] = useState(loadSavedReport);
+
+  const setReportData = useCallback((report) => {
+    setReportDataState(report);
+    saveReport(report);
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
@@ -21,16 +45,10 @@ export default function App() {
           </Link>
 
           <div className="flex items-center gap-4 text-sm font-medium">
-            <Link
-              to="/"
-              className="text-slate-600 hover:text-blue-600 transition"
-            >
+            <Link to="/" className="text-slate-600 hover:text-blue-600 transition">
               New Input
             </Link>
-            <Link
-              to="/report"
-              className="text-slate-600 hover:text-blue-600 transition"
-            >
+            <Link to="/report" className="text-slate-600 hover:text-blue-600 transition">
               Live Report
             </Link>
           </div>
@@ -40,14 +58,9 @@ export default function App() {
       {/* Main Content View with Routes */}
       <main className="flex-1">
         <Routes>
-          <Route
-            path="/"
-            element={<InputFormPage setReportData={setReportData} />}
-          />
-          <Route
-            path="/report"
-            element={<ReportDashboardPage reportData={reportData} />}
-          />
+          <Route path="/" element={<InputFormPage setReportData={setReportData} />} />
+          <Route path="/report" element={<ReportDashboardPage reportData={reportData} />} />
+          <Route path="*" element={<ReportDashboardPage reportData={null} />} />
         </Routes>
       </main>
 
@@ -58,4 +71,3 @@ export default function App() {
     </div>
   );
 }
-

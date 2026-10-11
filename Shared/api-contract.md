@@ -1,181 +1,97 @@
-<<<<<<< HEAD
-# API Contract: GridScholar
+# API Contract: GridScholar / DeltaMetrics
 
-This document serves as the source of truth for the frontend and backend communication.
+Source of truth for frontend and backend communication.
 
-## Base URL
-Backend will run locally on: `http://localhost:8000`
-=======
-# Shared API Contract
+**Base URL:** `https://gridscholar.onrender.com` (local: `http://localhost:8000`)
 
-## Overview
-This document serves as the agreed single source of truth for communication between the Frontend (React) and Backend (FastAPI/Node) for DeltaMetrics / MisconceptionAppHackRU.
->>>>>>> origin/feature/frontend
+## `GET /health`
+Returns `{"status": "ok"}`. Used by Render health checks and by the frontend to wake the server.
 
----
+## `POST /api/context-report`
 
-## Endpoints
+Generates a contextual admissions report.
 
-<<<<<<< HEAD
-### 1. Simulate & Predict Absenteeism
-Runs the Scikit-Learn quantitative ML engine based on user-adjusted sliders from the frontend to predict absenteeism per zone.
+### Request (`application/json`)
 
-*   **URL:** `/api/predict`
-*   **Method:** `POST`
-*   **Content-Type:** `application/json`
-
-**Request Parameters:**
-```json
-{
-  "weather_rain_mm": 15.5,
-  "wind_chill_f": 25,
-  "transit_delay_minutes": 35
-}
-```
-
-**Success Response:**
-*   **Code:** 200 OK
-*   **Content:**
-    ```json
-    {
-      "status": "success",
-      "predictions": [
-        {
-          "zone_id": "Zone 1 - French Street",
-          "risk_score": 0.72,
-          "is_alert": true
-        },
-        {
-          "zone_id": "Zone 2 - Easton Ave",
-          "risk_score": 0.15,
-          "is_alert": false
-        }
-      ]
-    }
-    ```
-
----
-
-### 2. Generate Emergency Intervention (Gemini)
-When a zone hits a high-risk threshold (e.g., >65%), this endpoint calls Gemini 2.5 to synthesize the quantitative risk data into an actionable intervention protocol, including automated SMS and a state funding waiver.
-
-*   **URL:** `/api/intervention`
-*   **Method:** `POST`
-*   **Content-Type:** `application/json`
-
-**Request Parameters:**
-```json
-{
-  "zone_id": "Zone 1 - French Street",
-  "risk_score": 0.72,
-  "transit_alert": "Northeast Corridor train delayed by 35 minutes.",
-  "weather_summary": "Heavy rain (15.5mm/hr) with low wind chill."
-}
-```
-
-**Success Response:**
-*   **Code:** 200 OK
-*   **Content:**
-    ```json
-    {
-      "status": "success",
-      "data": {
-        "zone_id": "Zone 1 - French Street",
-        "predicted_absentee_rate": 0.72,
-        "root_cause_summary": "string",
-        "reroute_action_plan": "string",
-        "bilingual_sms_english": "string",
-        "bilingual_sms_spanish": "string",
-        "nj_doe_funding_waiver_draft": "string"
-      }
-    }
-    ```
-
----
-
-### 3. Parse Transit Alert Image (Optional / Wow Factor)
-Allows uploading an image (e.g., tweet screenshot) to extract transit disruption text using Gemini Vision.
-
-*   **URL:** `/api/parse-alert-image`
-*   **Method:** `POST`
-*   **Content-Type:** `multipart/form-data`
-
-**Request Parameters:**
-*   `file` (required): Image file.
-
-**Success Response:**
-*   **Code:** 200 OK
-*   **Content:**
-    ```json
-    {
-      "status": "success",
-      "transit_alert_text": "Extracted text regarding the delay."
-    }
-    ```
-=======
-### 1. Generate Context Report
-
-- **Endpoint:** `POST /api/context-report`
-- **Description:** Submits student and high school input data to compute opportunity utilization, environmental baseline metrics, and generate an AI contextual statement.
-
-#### Request Headers
-```http
-Content-Type: application/json
-```
-
-#### Request Payload
-```json
-{
-  "highSchoolName": "string",
-  "zipCode": "string",
-  "apsTaken": 3,
-  "survivalHours": 20
-}
-```
-
-#### Field Descriptions (Request)
-| Field | Type | Description |
+| Field | Type | Rules |
 |---|---|---|
-| `highSchoolName` | `string` | High school name provided by the applicant |
-| `zipCode` | `string` | 5-digit zip code of the applicant/school |
-| `apsTaken` | `number` | Total number of AP / advanced courses taken by student |
-| `survivalHours` | `number` | Weekly hours spent on survival/family responsibilities/work |
+| `high_school_name` | string | 2-120 characters |
+| `zip_code` | string | exactly 5 digits (string, so leading zeros survive) |
+| `ap_classes_taken` | integer | 0-40 |
+| `survival_hours_per_week` | integer | 0-100 |
 
-#### Response Status
-- `200 OK`: Context report computed successfully.
-- `400 Bad Request`: Validation failure on required fields.
-- `500 Internal Server Error`: Server failure during data retrieval or AI generation.
-
-#### Response Payload (`200 OK`)
 ```json
 {
-  "utilization": {
-    "taken": 3,
-    "offered": 5,
-    "percentage": 60
-  },
-  "metrics": {
-    "counselorRatio": 500,
-    "stateAvgCounselorRatio": 250,
-    "medianIncome": 40000,
-    "stateAvgIncome": 85000,
-    "timeDeficit": 20
-  },
-  "contextStatement": "The student has demonstrated significant resilience..."
+  "high_school_name": "Oswego East High School",
+  "zip_code": "60543",
+  "ap_classes_taken": 6,
+  "survival_hours_per_week": 14
 }
 ```
 
-#### Field Descriptions (Response)
-| Field | Type | Description |
-|---|---|---|
-| `utilization.taken` | `number` | Number of AP courses taken by the applicant |
-| `utilization.offered` | `number` | Number of AP courses offered at applicant's school |
-| `utilization.percentage` | `number` | Opportunity utilization percentage `(taken / offered) * 100` |
-| `metrics.counselorRatio` | `number` | Students per counselor at the applicant's school |
-| `metrics.stateAvgCounselorRatio` | `number` | State average student-to-counselor ratio |
-| `metrics.medianIncome` | `number` | Median household income in the applicant's school/zip |
-| `metrics.stateAvgIncome` | `number` | State average median household income |
-| `metrics.timeDeficit` | `number` | Weekly survival hours reported (hours unavailable for study/extracurriculars) |
-| `contextStatement` | `string` | AI-generated contextual summary explaining achievement relative to opportunity |
+### Success response (`200`)
 
->>>>>>> origin/feature/frontend
+Fields that could not be verified are `null`. They are never estimated.
+
+```json
+{
+  "status": "success",
+  "data": {
+    "school": {
+      "entered_name": "Oswego East High School",
+      "name": "Oswego East High School",
+      "city": "Oswego",
+      "state": "IL",
+      "enrollment": 2400,
+      "data_year": "2023-24",
+      "verification": "verified",
+      "confidence": "high",
+      "notes": "string or null"
+    },
+    "opportunity_utilization": {
+      "ap_classes_taken": 6,
+      "ap_classes_offered": 20,
+      "percentage": 30.0
+    },
+    "environmental_baselines": {
+      "counselor_ratio": 300,
+      "baseline_counselor_ratio": 376,
+      "baseline_counselor_label": "U.S. average, 2023-24 (ASCA / NCES)",
+      "recommended_counselor_ratio": 250,
+      "median_income": 95000,
+      "income_year": 2023,
+      "baseline_income": 81000,
+      "baseline_income_label": "Illinois median household income",
+      "baseline_income_year": 2023,
+      "time_deficit": 14
+    },
+    "gemini_context_statement": "string",
+    "statement_source": "ai",
+    "sources": [{ "title": "string", "url": "https://..." }],
+    "data_notes": ["string"]
+  }
+}
+```
+
+| Field | Notes |
+|---|---|
+| `school.verification` | `verified` (matched, good confidence), `partial` (matched but low confidence: show a warning), `not_found` (no school figures; ZIP income may still be present) |
+| `school.confidence` | `high`, `medium`, or `low` |
+| `opportunity_utilization.percentage` | `ap_classes_taken / ap_classes_offered * 100`, capped at 100; `null` if offerings are unknown or zero |
+| `environmental_baselines.baseline_counselor_ratio` | U.S. average students per counselor |
+| `environmental_baselines.recommended_counselor_ratio` | ASCA's recommendation (not an average) |
+| `environmental_baselines.baseline_income_label` | State name if the school's state is known, otherwise "U.S." |
+| `statement_source` | `ai` (written by Gemini) or `template` (generated from the figures if Gemini failed) |
+| `data_notes` | Human-readable warnings to show the user |
+
+### Errors
+
+`detail` is a string, except for `422` where it is a list of validation errors.
+
+| Status | Meaning |
+|---|---|
+| 422 | Invalid input (e.g. ZIP is not 5 digits) |
+| 429 | Gemini quota or rate limit reached (`Retry-After` header set) |
+| 502 | Gemini returned unreadable data |
+| 503 | `GEMINI_API_KEY` missing, rejected, or no usable model |
+| 504 | Research timed out |
